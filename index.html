@@ -1,0 +1,2776 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Top Down Prototype v4 Modular AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root{
+      --bg:#070712;
+      --panel:#0e1222;
+      --panel2:#141a2e;
+      --cyan:#05d9e8;
+      --pink:#ff2a6d;
+      --purple:#7700ff;
+      --gold:#ffd166;
+      --green:#35ff8d;
+      --yellow:#ffd84f;
+      --red:#ff5c79;
+      --white:#f4f7ff;
+      --muted:rgba(255,255,255,.64);
+      --line:rgba(5,217,232,.16);
+    }
+
+    html, body{
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(119,0,255,.14), transparent 30%),
+        radial-gradient(circle at 100% 100%, rgba(5,217,232,.10), transparent 28%),
+        var(--bg);
+      color:var(--white);
+      font-family:"Courier New", monospace;
+      user-select:none;
+    }
+
+    #app{
+      width:100%;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:10px;
+      transition:filter .18s ease;
+    }
+
+    #app.blurred{ filter:blur(6px) brightness(.72); }
+
+    .panel{
+      background:rgba(14,18,34,.88);
+      border:1px solid var(--line);
+      border-radius:12px;
+      box-shadow:0 0 22px rgba(5,217,232,.07), inset 0 1px 0 rgba(255,255,255,.04);
+      backdrop-filter:blur(8px);
+    }
+
+    #storyPanel{
+      min-height:92px;
+      padding:12px 16px 14px 18px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    #storyPanel::before{
+      content:"";
+      position:absolute;
+      left:0; top:0; bottom:0; width:3px;
+      background:linear-gradient(to bottom, var(--pink), var(--purple));
+      box-shadow:0 0 10px var(--pink);
+    }
+
+    #storyTitle{
+      font-size:10px;
+      letter-spacing:3px;
+      color:rgba(5,217,232,.48);
+      text-transform:uppercase;
+      margin-bottom:8px;
+    }
+
+    #storyText{
+      font-size:13px;
+      line-height:1.55;
+      color:rgba(255,255,255,.9);
+      white-space:pre-line;
+    }
+
+    #middle{
+      flex:1;
+      min-height:0;
+      display:grid;
+      grid-template-columns:1fr 290px;
+      gap:10px;
+    }
+
+    #gameWrap{
+      min-height:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+      position:relative;
+    }
+
+    #gameCanvas{
+      width:min(100%, 960px);
+      height:auto;
+      display:block;
+      background:#070b16;
+      border:1px solid rgba(5,217,232,.12);
+      border-radius:10px;
+      image-rendering:pixelated;
+      box-shadow:0 0 40px rgba(5,217,232,.08), 0 0 90px rgba(119,0,255,.05);
+    }
+
+    #side{
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    #hud{
+      padding:12px;
+      display:grid;
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    .hudBlock{
+      min-height:82px;
+      padding:10px 12px;
+      border:1px solid rgba(5,217,232,.12);
+      border-radius:10px;
+      background:rgba(255,255,255,.025);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .hudLabel{
+      font-size:10px;
+      letter-spacing:2px;
+      color:rgba(5,217,232,.45);
+      text-transform:uppercase;
+    }
+
+    .hudValue{
+      font-size:14px;
+      color:var(--cyan);
+      text-shadow:0 0 10px rgba(5,217,232,.28);
+    }
+
+    #lifeAmmoGroup{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      width:100%;
+    }
+
+    #heartWrap{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    #heartSvg{
+      width:30px;
+      height:30px;
+      transform-origin:center;
+      animation:heartbeat .85s infinite ease-in-out;
+      filter:drop-shadow(0 0 8px rgba(53,255,141,.25));
+    }
+
+    @keyframes heartbeat{
+      0%,100%{transform:scale(1);}
+      25%{transform:scale(1.08);}
+      45%{transform:scale(.97);}
+      65%{transform:scale(1.1);}
+    }
+
+    #ammoWrap{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--gold);
+      font-size:16px;
+    }
+
+    #ammoIcon{ font-size:22px; line-height:1; }
+    #ammoCount{
+      font-size:18px;
+      color:var(--gold);
+      text-shadow:0 0 10px rgba(255,209,102,.16);
+      min-width:22px;
+      text-align:right;
+    }
+
+    #roomPanel, #inventoryPanel, #memoryPanel{
+      padding:12px;
+    }
+
+    #inventoryGrid{
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      min-height:64px;
+      align-items:flex-start;
+    }
+
+    .invIcon{
+      min-width:64px;
+      height:64px;
+      padding:8px 8px 6px;
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:12px;
+      background:rgba(255,255,255,.03);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:2px;
+      position:relative;
+    }
+
+    .invBig{ font-size:26px; line-height:1; }
+    .invSmall{
+      font-size:10px;
+      color:var(--muted);
+      line-height:1.1;
+      text-align:center;
+    }
+
+    .gunIconWrap{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:30px;
+}
+
+.gunIcon{
+  width:34px;
+  height:34px;
+  display:block;
+  filter:drop-shadow(0 0 8px rgba(217,228,255,.18));
+}
+
+    .keyNumber{
+      position:absolute;
+      top:-7px;
+      right:-5px;
+      min-width:18px;
+      height:18px;
+      padding:0 4px;
+      border-radius:999px;
+      background:var(--gold);
+      color:#1b1507;
+      font-size:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:bold;
+      box-shadow:0 0 10px rgba(255,209,102,.3);
+    }
+
+    #memoryList{
+      margin-top:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height:260px;
+      overflow:auto;
+      padding-right:4px;
+    }
+
+    .memoryItem{
+      border-left:2px solid rgba(255,209,102,.6);
+      padding-left:8px;
+      font-size:12px;
+      line-height:1.45;
+      color:var(--muted);
+    }
+
+    #pauseBtn{
+      position:fixed;
+      top:14px;
+      right:14px;
+      z-index:15;
+      width:42px;
+      height:42px;
+      border-radius:999px;
+      border:1px solid rgba(5,217,232,.18);
+      background:rgba(14,18,34,.88);
+      color:var(--white);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+      box-shadow:0 0 18px rgba(5,217,232,.08);
+    }
+
+    .overlay{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:30;
+      background:rgba(0,0,0,.32);
+      padding:20px;
+    }
+
+    .overlay.open{ display:flex; }
+
+    .modal{
+      width:min(760px, 96vw);
+      background:rgba(14,18,34,.97);
+      border:1px solid rgba(5,217,232,.18);
+      border-radius:14px;
+      padding:18px;
+      box-shadow:0 0 40px rgba(5,217,232,.09), 0 0 80px rgba(119,0,255,.06);
+    }
+
+    .modalTitle{
+      font-size:11px;
+      letter-spacing:3px;
+      text-transform:uppercase;
+      color:rgba(5,217,232,.48);
+      margin-bottom:12px;
+    }
+
+    .modalMain{
+      font-size:14px;
+      line-height:1.68;
+      white-space:pre-line;
+      color:rgba(255,255,255,.92);
+    }
+
+    #dialogChoices{
+      margin-top:14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .choiceBtn, .modalBtn{
+      width:100%;
+      border:1px solid rgba(5,217,232,.14);
+      border-radius:10px;
+      background:rgba(255,255,255,.03);
+      color:var(--white);
+      font-family:inherit;
+      font-size:13px;
+      padding:12px 14px;
+      cursor:pointer;
+      transition:.15s;
+      text-align:left;
+    }
+
+    .choiceBtn:hover, .modalBtn:hover{
+      transform:translateY(-1px);
+      border-color:rgba(5,217,232,.42);
+      box-shadow:0 0 14px rgba(5,217,232,.14);
+    }
+
+    #chestPattern{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:10px;
+    }
+
+    .patternBtn{
+      height:62px;
+      border:1px solid rgba(255,209,102,.22);
+      border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,209,102,.08), rgba(255,209,102,.03));
+      color:var(--gold);
+      font-size:22px;
+      cursor:pointer;
+      font-family:inherit;
+      transition:.12s;
+    }
+
+    .patternBtn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 0 14px rgba(255,209,102,.16);
+    }
+
+    .patternBtn.active{
+      background:linear-gradient(180deg, rgba(255,209,102,.22), rgba(255,209,102,.06));
+      box-shadow:0 0 16px rgba(255,209,102,.24);
+    }
+
+    #chestHint, #chestStatus{
+      margin-top:12px;
+      font-size:12px;
+      line-height:1.6;
+      color:var(--muted);
+      white-space:pre-line;
+    }
+
+    #chestActions{
+      margin-top:14px;
+      display:flex;
+      gap:10px;
+    }
+
+    #pauseMenu .modal{ width:min(680px, 96vw); }
+
+    #pauseButtons, #gameOverButtons{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    #pauseInfo{
+      margin-top:14px;
+      white-space:pre-line;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.65;
+    }
+
+    #secretInputWrap{
+      margin-top:16px;
+      padding-top:10px;
+      border-top:1px solid rgba(255,255,255,.05);
+    }
+
+    #secretInput{
+      width:100%;
+      background:transparent;
+      border:none;
+      border-bottom:1px solid rgba(255,255,255,.12);
+      padding:8px 2px;
+      color:rgba(255,255,255,.55);
+      outline:none;
+      font-family:inherit;
+      font-size:12px;
+    }
+
+    #secretInput::placeholder{ color:rgba(255,255,255,.15); }
+
+    #cheatPanel{
+      margin-top:14px;
+      padding-top:12px;
+      border-top:1px solid rgba(255,255,255,.06);
+      display:none;
+    }
+
+    #cheatPanel.open{ display:block; }
+
+    #cheatButtons{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .cheatActive{
+      border-color:rgba(255,209,102,.42) !important;
+      box-shadow:0 0 14px rgba(255,209,102,.14);
+    }
+
+    @media (max-width:980px){
+      #middle{ grid-template-columns:1fr; }
+    }
+
+    @media (max-width:720px){
+      #chestPattern{ grid-template-columns:repeat(2, 1fr); }
+      #cheatButtons{ grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <button id="pauseBtn" title="Pause">❚❚</button>
+
+  <div id="app">
+    <div id="storyPanel" class="panel">
+      <div id="storyTitle">Story / Room</div>
+      <div id="storyText"></div>
+    </div>
+
+    <div id="middle">
+      <div id="gameWrap" class="panel">
+        <canvas id="gameCanvas" width="640" height="416"></canvas>
+      </div>
+
+      <div id="side">
+        <div id="hud" class="panel">
+          <div class="hudBlock">
+            <div id="lifeAmmoGroup">
+              <div>
+                <div class="hudLabel"> </div> 
+                <div id="heartWrap">
+                  <svg id="heartSvg" viewBox="0 0 24 24" aria-hidden="true">
+                    <path id="heartPath" fill="#35ff8d" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div>
+                <div class="hudLabel">Ammo</div>
+                <div id="ammoWrap">
+                  <div id="ammoIcon">⚇</div>
+                  <div id="ammoCount">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="roomPanel" class="panel">
+          <div class="hudLabel">Room</div>
+          <div class="hudValue" id="hudRoom">room_01</div>
+        </div>
+
+        <div id="inventoryPanel" class="panel">
+          <div class="hudLabel">Inventory</div>
+          <div id="inventoryGrid"></div>
+        </div>
+
+        <div id="memoryPanel" class="panel">
+          <div class="hudLabel">Logs</div>
+          <div id="memoryList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dialogOverlay" class="overlay">
+    <div class="modal">
+      <div class="modalTitle">Dialog</div>
+      <div class="modalMain" id="dialogText"></div>
+      <div id="dialogChoices"></div>
+    </div>
+  </div>
+
+  <div id="chestOverlay" class="overlay">
+    <div class="modal">
+      <div class="modalTitle">Chest</div>
+      <div class="modalMain" id="chestTitle"></div>
+      <div id="chestHint"></div>
+      <div id="chestPattern"></div>
+      <div id="chestStatus"></div>
+      <div id="chestActions">
+        <button class="modalBtn" onclick="resetChestInput()">Reset</button>
+        <button class="modalBtn" onclick="closeChest()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pauseMenu" class="overlay">
+    <div class="modal">
+      <div class="modalTitle" id="pauseMenuTitle">Pause</div>
+      <div class="modalMain" id="pauseMenuText"> </div>
+
+      <div id="pauseButtons">
+        <button id="resumeBtn" class="modalBtn">Continue</button>
+        <button id="loadCheckpointBtn" class="modalBtn">Load from checkpoint</button>
+        <button id="restartFullBtn" class="modalBtn">Restart the game</button>
+      </div>
+
+      <div id="pauseInfo">
+
+W A S D / arrows — movement
+E — interaction
+SPACE — shoot
+ESC — Pause / Close the window
+
+The game uses autosaves!
+
+      </div>
+
+      <div id="secretInputWrap">
+        <input id="secretInput" type="text" autocomplete="off" placeholder=" " />
+      </div>
+
+      <div id="cheatPanel">
+        <div class="hudLabel">Cheatcodes</div>
+        <div id="cheatButtons">
+          <button class="modalBtn" id="cheatGodBtn">God mode: OFF</button>
+          <button class="modalBtn" id="cheatNoclipBtn">Noclip: OFF</button>
+          <button class="modalBtn" id="cheatAmmoBtn">+1000 ammo</button>
+          <button class="modalBtn" id="cheatAllKeysBtn">All keys</button>
+          <button class="modalBtn" id="cheatKillAllBtn">Kill all in room</button>
+          <button class="modalBtn" id="cheatClearBtn">OFF everything</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay">
+    <div class="modal">
+      <div class="modalTitle">WASTED</div>
+      <div class="modalMain" id="gameOverText"> </div>
+      <div id="gameOverButtons">
+        <button id="gameOverLoadBtn" class="modalBtn">Load from checkpoint</button>
+        <button id="gameOverRestartBtn" class="modalBtn">Restart the game</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+    =====================================================================
+    TOP DOWN PROTOTYPE v4 — MODULAR AI VERSION
+    =====================================================================
+
+    ЧТО ДОБАВЛЕНО В ЭТОЙ ВЕРСИИ:
+    1) Кнопка E теперь НЕ зависит от направления взгляда игрока для:
+       - NPC
+       - сундуков
+       - дверей
+    2) Но для двери есть отдельное правило:
+       - подсказка E появляется только если игрок стоит ПРЯМО НА клетке двери
+       - дверь тоже работает только если игрок стоит прямо на клетке двери
+    3) Враги больше не преследуют вечно:
+       - если игрок вышел из "зоны удержания цели", враг прекращает chase
+    4) Враг умеет обходить стену простым grid-поиском:
+       - сначала пробует шаг к цели
+       - если путь перекрыт, делает BFS до нужной клетки
+    5) Добавлена МОДУЛЬНАЯ система AI врагов:
+       - static  = стоит на месте
+       - patrol  = ходит по patrolPoints
+       - roam    = гуляет случайно по комнате
+    6) Если patrolPoints не заданы:
+       - враг стоит на стартовой точке
+       - после потери игрока возвращается на spawn
+    7) После потери игрока враг:
+       - patrol -> возвращается к своему маршруту
+       - static -> возвращается на spawn
+       - roam   -> снова начинает бродить случайно
+
+    ---------------------------------------------------------------------
+    КАК ДОБАВЛЯТЬ НОВЫХ ВРАГОВ В НОВЫЕ КОМНАТЫ:
+    ---------------------------------------------------------------------
+
+    В room.enemies[] просто добавляешь объект:
+
+      {
+        id: "enemy_2_1",          // уникальный id
+        type: 2,                  // твой тип врага (например 1=медленный, 2=быстрый)
+        variantIndex: 1,          // индекс внутри типа, для удобства
+        col: 10,
+        row: 5,
+        hp: 2,
+        alive: true,
+        facing: "left",
+        aiMode: "patrol",         // "static" | "patrol" | "roam"
+        speedTier: "fast",        // "slow" | "fast"
+        patrolPoints: [           // только для patrol
+          { col: 10, row: 5 },
+          { col: 12, row: 5 },
+          { col: 12, row: 8 },
+          { col: 10, row: 8 }
+        ],
+        patrolLoop: "loop"        // "loop" | "pingpong"
+      }
+
+    ---------------------------------------------------------------------
+    КРАТКО ПО aiMode:
+    ---------------------------------------------------------------------
+
+    static:
+      - враг стоит на месте
+      - chase если увидел игрока
+      - потерял игрока -> возвращается на spawn
+
+    patrol:
+      - враг ходит по patrolPoints
+      - chase если увидел игрока
+      - потерял игрока -> возвращается к patrolPoints и продолжает маршрут
+
+    roam:
+      - враг выбирает случайные клетки и бродит по комнате
+      - chase если увидел игрока
+      - потерял игрока -> снова roam
+
+    ---------------------------------------------------------------------
+    ПРО ДВЕРИ:
+    ---------------------------------------------------------------------
+
+    В этой версии дверь активируется только если игрок СТОИТ В НЕЙ.
+    Поэтому на дверь теперь реально можно "зайти клеткой".
+
+    ---------------------------------------------------------------------
+    ПРО КЛЮЧИ И ДВЕРЬ 01:
+    ---------------------------------------------------------------------
+
+    Ниже я специально сделал room01_door_01 -> requiresKeyId: 1
+    То есть теперь дверь 01 действительно требует ключ 1.
+    =====================================================================
+    */
+
+    const CFG = {
+      TILE: 32,
+      COLS: 20,
+      ROWS: 13,
+      W: 640,
+      H: 416,
+
+      MOVE_COOLDOWN: 180,
+      PLAYER_LERP: 0.10,
+
+      CONTACT_DAMAGE_COOLDOWN: 800,
+
+      MAX_HP: 3,
+      HIT_CHANCE: 0.24,
+      HIT_STUN_MS: 500,
+      HIT_FLASH_MS: 180,
+      MUZZLE_FLASH_MS: 80,
+
+      SAVE_KEY: "topdown_checkpoint_v4_modular_ai",
+
+      /* ---------------------------------------------------------------
+         НАСТРОЙКИ AI
+         ---------------------------------------------------------------
+         CHASE_KEEP_RADIUS:
+           если враг уже преследует, но игрок ушёл дальше этого радиуса,
+           враг сбрасывает chase
+      ---------------------------------------------------------------- */
+      CHASE_KEEP_RADIUS: 3,
+
+      /* ---------------------------------------------------------------
+         Частота шага по типу скорости.
+         Чем меньше число - тем чаще ходит враг.
+      ---------------------------------------------------------------- */
+      ENEMY_STEP_MS: {
+        slow: 500,
+        fast: 230
+      },
+
+      /* ---------------------------------------------------------------
+         Для roam-врагов:
+         как часто они выбирают новую случайную цель
+      ---------------------------------------------------------------- */
+      ROAM_RETARGET_MS: 800
+    };
+
+    const ROOMS = {
+      room_01: {
+        id: "room_01",
+        name: "APARTMENT 66",
+        story: [
+          "23:47. Tuesday",
+          "That hangover hit harder than a heavy porcelain figurine criminals use to knock out unlucky detectives. Waking up in a stranger’s apartment after a bender had already been unpleasant back at the academy — now it felt about thirty-seven years worse.\nThe catch was, the last thing I remembered was chasing a lead on a missing persons case. And I hadn’t had a drink in a record forty-eight hours.",
+        ],
+        map: [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,1],
+          [1,0,0,0,1,0,1,0,0,1,0,0,0,0,1,1,0,0,0,1],
+          [1,0,0,1,1,1,1,1,0,0,0,0,1,1,1,1,1,0,1,1],
+          [1,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,1,0,0,0,0,0,1,1,1,0,1,1,1,1,1,0,0,0,1],
+          [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1],
+          [1,0,9,1,1,1,0,0,1,0,0,0,0,0,0,1,0,0,0,1],
+          [1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+          [1,0,0,1,1,1,0,0,1,0,0,0,0,0,0,1,0,0,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1],
+        ],
+
+        doors: [
+          {
+            id:"room01_door_01",
+            number:"01",
+            col:17,
+            row:12,
+            leadsTo:"corridor_01",
+            targetDoorId:"corridor01_door_01",
+            requiresKeyId:01
+          }
+        ],
+
+        chests: [
+          {
+            id:"chest_01",
+            col:9, row:3, opened:false,
+            name:"Weapon safe",
+            hint:"",
+            symbols:["◉","✦","⌖"],
+            correctSequence:[0,1,2,1],
+            reward:{ itemCode:2, amount:1 },
+            rewardText:"Wow! A gun! Walther PPK"
+          },
+          {
+            id:"chest_02",
+            col:1, row:1, opened:false,
+            name:"Тяжёлая латунная шкатулка",
+            hint:"Записка рядом:\n«ДВА РАЗА ЛЕВОЕ. ПОТОМ ДВЕРЬ. ПОТОМ ЗВЕЗДА.»",
+            symbols:["◀","◆","✶","▣","☰","●"],
+            correctSequence:[0,0,3,2],
+            reward:{ itemCode:3, amount:4 },
+            rewardText:"Внутри патроны."
+          }
+        ],
+
+        npcs: [
+  {
+  id: "npc01",
+  col: 5,
+  row: 8,
+  name: "A nervous man in a green jacket stood by the bed, watching me like he was looking for something… or waiting for it to look back",
+  dialogDone: false,
+  dialog: {
+    start: "intro",
+    nodes: {
+      intro: {
+        text: "-Oh God… you’re alive! What the hell is going on?!\n\n-Start talking\n\n-Me? You’re the one who burst into my place half-dead and passed out on the floor! I barely managed to shut the door on whatever was chasing you!\n\n-I don't remember… amnesia. What a cheap trick to drop a man straight into the middle of things. Name’s Snow. Detective. What was chasing me?\n\n-A man but… not a man! His face was all twisted, eyes red, walking like he got hit by a bus! You said you’re a cop, right? You’re supposed to protect me from that thing! I hope you’ve got your gun on you and won't ask for mine… damn it, that thing was terrifying!\n\n-Call 911, I’ll file a report on my missing weapon.\n\n-Ha! Phone's dead the whole night… and you’re a suspicious cop without a gun. I’m screwed…",
+        choices: [
+          { text: "-You're not. Not yet. We're leaving", next: "leave" },
+          { text: "-Taking a civilian’s gun… academy dream come true", next: "gun" }
+        ]
+      },
+
+      leave: {
+        text: "-You're not. Not yet. We're leaving. We'll call for backup from my car\n\n-Us! No—just you! I’m not going out there with that thing roaming around! The key’s in the closet—small room, across the hall, right opposite the door. Don’t let that thing in here!",
+        end: true,
+        endChoiceText: "-You’re way too scared of some washed-up drunks wandering your hallway",
+        logs: [
+          "Who keeps a key so far away from the door?"
+        ]
+      },
+
+      gun: {
+        text: "-You said you had a gun? Good. I'll need it when we head out. We’ll call for backup from my car\n\n-What? I… no, no, you must’ve heard wrong. I’m not going anywhere with that thing roaming around! Go alone! You said you’re a cop—right?",
+        choices: [
+          { text: "Fine. I'll go alone.", next: "end_a" },
+          { text: "Just give me the gun", next: "end_b" },
+          { text: "Badge. Hand it over", next: "end_c" }
+        ]
+      },
+
+      end_a: {
+        text: "-Fine. I'll go alone\n\n-The key’s in the closet—small room, across the hall, right opposite the door. Don’t let that thing in here!",
+        end: true,
+        endChoiceText: "-You’re way too scared of some washed-up drunks wandering your hallway",
+        logs: [
+          "Who keeps a key so far away from the door?"
+        ]
+      },
+
+      end_b: {
+        text: "-That half-finished sentence about a gun might as well have come with a big red arrow. This place is tied to the disappearances… and I don’t remember knocking myself out. Something’s going on here and your gun would help\n\n-Yeah, no. I don’t have a gun, and your story’s not exactly convincing. I’m not getting robbed with a weapon I handed over myself. I think it’s time for you to leave, like you wanted. The key’s in the closet—small room, across the hall, right opposite the door. Just don’t let that thing in here!",
+        end: true,
+        endChoiceText: "-You’re way too scared of some washed-up drunks wandering your hallway",
+        logs: [
+          "Who keeps a key so far away from the door?"
+        ]
+      },
+
+      end_c: {
+        text: "-A detective’s badge opens a lot of doors. That half-finished sentence about a gun might as well have come with a big red arrow. This place is tied to the disappearances… and I don’t remember knocking myself out. Something’s going on here, and as a cop, I need that gun.\n\n-…Alright. Okay. There’s a safe by the kitchen. Code's Sun-Star-Cross-Star. The key’s in the closet—small room, across the hall, right opposite the door. Just don’t let that thing in here! And— I expect my property back",
+        end: true,
+        endChoiceText: "-You’re way too scared of some washed-up drunks wandering your hallway",
+        logs: [
+          "Who keeps a key so far away from the door?",
+          "Sun-Star-Cross-Star for a safe huh"
+        ]
+      },
+
+      done: {
+        text: "Thought you wanted to leave immediately… detective",
+        end: true,
+        endChoiceText: "I left, stay safe"
+      }
+    }
+  }
+}
+], 
+
+        pickups: [
+          { id:"pickup_01", col:3, row:5, itemCode:3, amount:2, taken:false, note:"Nice, some ammo!" },
+          { id:"pickup_02", col:17, row:2, itemCode:1, amount:1, keyId:1, taken:false, note:"Oh, a key! Number... 01" }
+        ],
+
+        enemies: [
+            /*
+            types: 1 (slow) or 2 (fast)
+            variantIndex: 1
+            aiMode: static or patrol or roam
+            speedTier: slow or fast
+            
+            TO ADD ENEMIES FOR EACH ENEMY i ADD:
+            {
+            id:"enemy_i_i",
+            type:1,
+            variantIndex:1,
+            col:0, row:0,
+            hp:2,
+            alive:true,
+            facing:"left",
+            aiMode:"patrol",
+            speedTier:"slow",
+            patrolPoints:[
+              { col:1, row:2 },
+              { col:3, row:4 },
+              { col:15, row:6 },
+              { col:7, row:8 }
+            ],
+            patrolLoop:"loop"
+          },
+            */
+
+        ]
+      },
+
+      corridor_01: {
+        id:"corridor_01",
+        name:"CORRIDOR X",
+        story:[
+          "За дверью — длинный коридор.",
+          "Тихо, слишком тихо.",
+          "Это заготовка под следующую большую сцену."
+        ],
+        map:[
+          [1,1,0,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
+        ],
+        doors: [
+          {
+            id:"corridor01_door_01",
+            number:"01",
+            col:2,
+            row:0,
+            leadsTo:"room_01",
+            targetDoorId:"room01_door_01",
+            requiresKeyId:1
+          },
+          {
+            id:"corridor01_door_02",
+            number:"02",
+            col:0,
+            row:2,
+            leadsTo:"room_02",
+            targetDoorId:"room02_door_02",
+            requiresKeyId:2
+          },
+          {
+            id:"corridor01_door_lift",
+            number:"lift",
+            col:19,
+            row:6,
+            leadsTo:null,
+            targetDoorId:null,
+            requiresKeyId:0
+          }
+        ],
+        chests: [],
+        npcs: [],
+        pickups: [],
+
+        enemies: [
+          {
+            id:"enemy_2_2",
+            type:2,
+            variantIndex:2,
+            col:10,
+            row:6,
+            hp:2,
+            alive:true,
+            facing:"left",
+            aiMode:"static",
+            speedTier:"slow",
+            patrolPoints:[],
+            patrolLoop:"loop"
+          }
+        ]
+      },
+
+      room_02: {
+        id:"room_02",
+        name:"APARTMENT 67",
+        story:[
+          "За дверью — длинный коридор.",
+          "Тихо, слишком тихо.",
+          "Это заготовка под следующую большую сцену."
+        ],
+        map:[
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+          [1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
+        ],
+        doors: [
+          {
+            id:"room02_door_02",
+            number:"02",
+            col:19,
+            row:2,
+            leadsTo:"corridor_01",
+            targetDoorId:"room02_door_02",
+            requiresKeyId:null
+          },
+          
+        ],
+        chests: [],
+        npcs: [],
+        pickups: [],
+
+        enemies: [
+          {
+            id:"enemy_2_2",
+            type:2,
+            variantIndex:2,
+            col:10,
+            row:6,
+            hp:2,
+            alive:true,
+            facing:"left",
+            aiMode:"static",
+            speedTier:"slow",
+            patrolPoints:[],
+            patrolLoop:"loop"
+          }
+        ]
+      }
+
+    };
+
+    const G = {
+      roomId:null,
+      room:null,
+
+      player:{ col:1,row:1,px:0,py:0,dir:"right",hp:CFG.MAX_HP,lastMoveAt:0,flashUntil:0 },
+      inventory:{ keys:[], gun:0, ammo:0 },
+      memory:[],
+      roomStates:{},
+      checkpoint:null,
+      cheats:{ god:false, noclip:false },
+
+      chests:[],
+      npcs:[],
+      pickups:[],
+      doors:[],
+      enemies:[],
+
+      activeDialogNpcId:null,
+      activeDialogNode:null,
+      activeChestId:null,
+      chestInput:[],
+      interactHint:null,
+      muzzleFlashUntil:0,
+      gameOver:false,
+      paused:false,
+      keysDown:{},
+      tick:0
+    };
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function clone(v){ return JSON.parse(JSON.stringify(v)); }
+    function now(){ return performance.now(); }
+    function rand(){ return Math.random(); }
+    function lerp(a,b,t){ return a + (b-a)*t; }
+
+    function tileAt(col,row){
+      if (!G.room) return 1;
+      if (row<0 || row>=G.room.map.length) return 1;
+      if (col<0 || col>=G.room.map[0].length) return 1;
+      return G.room.map[row][col];
+    }
+
+    function isWall(col,row){
+      return tileAt(col,row)===1;
+    }
+
+    function isVoid(col,row){
+        return tileAt(col,row)===2;
+    }
+
+    function dirVector(dir){
+      if (dir==="up") return {x:0,y:-1};
+      if (dir==="down") return {x:0,y:1};
+      if (dir==="left") return {x:-1,y:0};
+      return {x:1,y:0};
+    }
+
+    function centerFromCell(col,row){
+      return { x: col*CFG.TILE + CFG.TILE/2, y: row*CFG.TILE + CFG.TILE/2 };
+    }
+
+    function chebyshev(aCol,aRow,bCol,bRow){
+      return Math.max(
+        Math.abs(aCol-bCol), 
+        Math.abs(aRow-bRow)
+      );
+    }
+
+    function cellKey(col,row){
+      return `${col},${row}`;
+    }
+
+    function addMemory(text){
+      G.memory.unshift(text);
+      if (G.memory.length > 24) G.memory.length = 24;
+      renderMemory();
+    }
+
+    function getRoomTemplate(roomId){
+      return clone(ROOMS[roomId]);
+    }
+
+    function buildRoomStateFromTemplate(roomId){
+      const tpl = getRoomTemplate(roomId);
+      return {
+        roomId,
+        chests: (tpl.chests || []).map(c => clone(c)),
+        npcs: (tpl.npcs || []).map(n => clone(n)),
+        pickups: (tpl.pickups || []).map(p => clone(p)),
+        doors: (tpl.doors || []).map(d => clone(d)),
+        enemies: (tpl.enemies || []).map(e => clone(e))
+      };
+    }
+
+    function getRoomState(roomId){
+      if (!G.roomStates[roomId]){
+        G.roomStates[roomId] = buildRoomStateFromTemplate(roomId);
+      }
+      return G.roomStates[roomId];
+    }
+
+    function saveCurrentRoomState(){
+      if (!G.roomId) return;
+
+      G.roomStates[G.roomId] = {
+        roomId: G.roomId,
+        chests: clone(G.chests),
+        npcs: clone(G.npcs),
+        pickups: clone(G.pickups),
+        doors: clone(G.doors),
+        enemies: G.enemies.map(e => ({
+          id:e.id,
+          type:e.type,
+          variantIndex:e.variantIndex,
+          col:e.col,
+          row:e.row,
+          hp:e.hp,
+          alive:e.alive,
+          facing:e.facing,
+          aiMode:e.aiMode,
+          speedTier:e.speedTier,
+          patrolPoints:clone(e.patrolPoints || []),
+          patrolLoop:e.patrolLoop || "loop",
+
+          /*
+            Сохраняем логическое состояние маршрута/AI,
+            чтобы при входе в комнату он восстанавливался.
+          */
+          spawnCol:e.spawnCol,
+          spawnRow:e.spawnRow,
+          patrolIndex:e.patrolIndex || 0,
+          patrolForward:e.patrolForward ?? true,
+          state:e.state || "idle",
+          aggroTargetLost:e.aggroTargetLost ?? true,
+          roamTarget:e.roamTarget ? clone(e.roamTarget) : null
+        }))
+      };
+    }
+
+    function buildCheckpoint(){
+      saveCurrentRoomState();
+      return {
+        roomId:G.roomId,
+        player:{
+          col:G.player.col,
+          row:G.player.row,
+          dir:G.player.dir,
+          hp:G.player.hp
+        },
+        inventory:clone(G.inventory),
+        roomStates:clone(G.roomStates),
+        cheats:clone(G.cheats),
+        memory:clone(G.memory)
+      };
+    }
+
+    function saveCheckpoint(){
+      G.checkpoint = buildCheckpoint();
+      localStorage.setItem(CFG.SAVE_KEY, JSON.stringify(G.checkpoint));
+      addMemory("Чекпоинт сохранён.");
+    }
+
+    function loadCheckpointFromStorage(){
+      const raw = localStorage.getItem(CFG.SAVE_KEY);
+      if (!raw) return false;
+      try{
+        G.checkpoint = JSON.parse(raw);
+        return true;
+      }catch(e){
+        return false;
+      }
+    }
+
+    function applyCheckpoint(cp){
+      if (!cp) return;
+      G.memory = cp.memory || [];
+      G.inventory = cp.inventory || { keys:[], gun:0, ammo:0 };
+      G.roomStates = cp.roomStates || {};
+      G.cheats = cp.cheats || { god:false, noclip:false };
+      G.gameOver = false;
+      closeGameOver();
+      updateCheatButtons();
+      renderMemory();
+
+      loadRoom(cp.roomId, null, {
+        col:cp.player.col,
+        row:cp.player.row,
+        dir:cp.player.dir,
+        hp:cp.player.hp
+      });
+
+      addMemory("Wasn't I here already? Whatever");
+    }
+
+    function clearAllSaves(){
+      localStorage.removeItem(CFG.SAVE_KEY);
+      G.checkpoint = null;
+    }
+
+    function getSpawn(map){
+      for (let r=0;r<map.length;r++){
+        for (let c=0;c<map[r].length;c++){
+          if (map[r][c]===9) return {col:c,row:r};
+        }
+      }
+      return {col:1,row:1};
+    }
+
+    /*
+      ===================================================================
+      ПОДГОТОВКА ВРАГА ПОСЛЕ ЗАГРУЗКИ КОМНАТЫ
+      -------------------------------------------------------------------
+      Тут мы добавляем runtime-поля, которые нужны для AI, но не обязательно
+      указывать вручную в каждом враге.
+      ===================================================================
+    */
+    function hydrateEnemy(enemy){
+      const p = centerFromCell(enemy.col, enemy.row);
+      return {
+        ...enemy,
+        px:p.x,
+        py:p.y,
+        flashUntil:0,
+        stunUntil:0,
+        shakeUntil:0,
+        lastHitAt:0,
+        lastStepAt:0,
+
+        /*
+          spawnCol/spawnRow — точка, куда враг возвращается,
+          если он static или если патруля нет
+        */
+        spawnCol: enemy.spawnCol ?? enemy.col,
+        spawnRow: enemy.spawnRow ?? enemy.row,
+
+        /*
+          Состояния AI:
+          - idle       : стоит
+          - patrol     : идёт по маршруту
+          - roam       : гуляет рандомно
+          - chase      : гонится за игроком
+          - return     : возвращается к маршруту или spawn
+        */
+        state: enemy.state || enemy.aiMode || "static",
+
+        patrolIndex: enemy.patrolIndex || 0,
+        patrolForward: enemy.patrolForward ?? true,
+        aggroTargetLost: enemy.aggroTargetLost ?? true,
+        roamTarget: enemy.roamTarget || null
+      };
+    }
+
+    function loadRoom(roomId, viaDoorId=null, explicitPlayerState=null){
+      const roomTpl = getRoomTemplate(roomId);
+      const saved = getRoomState(roomId);
+
+      G.roomId = roomId;
+      G.room = roomTpl;
+      G.chests = clone(saved.chests || []);
+      G.npcs = clone(saved.npcs || []);
+      G.pickups = clone(saved.pickups || []);
+      G.doors = clone(saved.doors || []);
+      G.enemies = (saved.enemies || []).map(hydrateEnemy);
+
+      let spawn;
+      if (explicitPlayerState){
+        spawn = { col:explicitPlayerState.col, row:explicitPlayerState.row };
+      } else if (viaDoorId){
+        const door = G.doors.find(d => d.id===viaDoorId);
+        spawn = door ? { col:door.col, row:door.row } : getSpawn(G.room.map);
+      } else {
+        spawn = getSpawn(G.room.map);
+      }
+
+      G.player.col = spawn.col;
+      G.player.row = spawn.row;
+      const p = centerFromCell(spawn.col, spawn.row);
+      G.player.px = p.x;
+      G.player.py = p.y;
+      G.player.dir = explicitPlayerState?.dir || "right";
+      G.player.hp = explicitPlayerState?.hp ?? G.player.hp;
+
+      updateStory();
+      updateHud();
+      updateInventoryUI();
+      updateInteractHint();
+      addMemory(`${G.room.name}`);
+    }
+
+    function updateStory(){
+      document.getElementById("storyTitle").textContent = `Story | ${G.room.name}`;
+      document.getElementById("storyText").textContent = G.room.story.join("\n");
+    }
+
+    function updateHeartUI(){
+      const heart = document.getElementById("heartPath");
+      const heartSvg = document.getElementById("heartSvg");
+
+      if (G.player.hp >= 3){
+        heart.setAttribute("fill", "#35ff8d");
+        heartSvg.style.animation = "heartbeat .98s infinite ease-in-out";
+        heartSvg.style.filter = "drop-shadow(0 0 8px rgba(53,255,141,.25))";
+      } else if (G.player.hp === 2){
+        heart.setAttribute("fill", "#ffd84f");
+        heartSvg.style.animation = "heartbeat .85s infinite ease-in-out";
+        heartSvg.style.filter = "drop-shadow(0 0 8px rgba(255,216,79,.22))";
+      } else if (G.player.hp === 1){
+        heart.setAttribute("fill", "#ff5c79");
+        heartSvg.style.animation = "heartbeat .7s infinite ease-in-out";
+        heartSvg.style.filter = "drop-shadow(0 0 8px rgba(255,92,121,.22))";
+      } else {
+        heart.setAttribute("fill", "#6f7480");
+        heartSvg.style.animation = "none";
+        heartSvg.style.filter = "none";
+      }
+    }
+
+    function updateHud(){
+      document.getElementById("hudRoom").textContent = G.room ? G.room.id : "---";
+      document.getElementById("ammoCount").textContent = String(G.inventory.ammo);
+      updateHeartUI();
+    }
+
+    function renderMemory(){
+      const box = document.getElementById("memoryList");
+      box.innerHTML = "";
+      if (!G.memory.length){
+        const el = document.createElement("div");
+        el.className = "memoryItem";
+        el.textContent = "My pockets are empty";
+        box.appendChild(el);
+        return;
+      }
+      G.memory.forEach(text => {
+        const el = document.createElement("div");
+        el.className = "memoryItem";
+        el.textContent = text;
+        box.appendChild(el);
+      });
+    }
+
+    function updateInventoryUI(){
+      const grid = document.getElementById("inventoryGrid");
+      grid.innerHTML = "";
+
+      G.inventory.keys.forEach(keyId => {
+        const el = document.createElement("div");
+        el.className = "invIcon";
+        el.innerHTML = `
+        <div class="invBig" style="color:var(--gold)">🗝</div>
+        <div class="invSmall">KEY ${String(keyId).padStart(2, "0")}</div>
+        `;
+        grid.appendChild(el);
+    });
+
+      if (G.inventory.gun > 0){
+  const el = document.createElement("div");
+  el.className = "invIcon";
+  el.innerHTML = `
+    <div class="gunIconWrap">
+      <svg class="gunIcon" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M8 28 L26 28 L38 20 L52 20 L56 24 L56 31 L49 31 L46 36 L39 36 L34 31 L20 31 L20 49 L13 49 L11 39 L8 39 Z"
+              fill="#d9e4ff"
+              stroke="rgba(5,217,232,.35)"
+              stroke-width="1.4"
+              stroke-linejoin="round"/>
+        <rect x="42" y="16" width="10" height="4" rx="1.5"
+              fill="rgba(255,255,255,.18)"/>
+      </svg>
+    </div>
+    <div class="invSmall">Walther PPK</div>
+  `;
+  grid.appendChild(el);
+}
+    }
+
+    function giveItem(itemCode, amount=1, extra={}){
+      if (itemCode === 1){
+        if (extra.keyId != null && !G.inventory.keys.includes(extra.keyId)){
+          G.inventory.keys.push(extra.keyId);
+          G.inventory.keys.sort((a,b)=>a-b);
+        }
+      } else if (itemCode === 2){
+        G.inventory.gun = 1;
+      } else if (itemCode === 3){
+        G.inventory.ammo += amount;
+      }
+      updateInventoryUI();
+      updateHud();
+    }
+
+    function hasKey(keyId){
+      return G.inventory.keys.includes(keyId);
+    }
+
+    function isModalOpen(){
+      return document.getElementById("dialogOverlay").classList.contains("open") ||
+             document.getElementById("chestOverlay").classList.contains("open") ||
+             document.getElementById("pauseMenu").classList.contains("open") ||
+             document.getElementById("gameOverOverlay").classList.contains("open");
+    }
+
+    function isPlayerNear(col, row, distance=1) {
+       const d = chebyshev(G.player.col, G.player.row, col, row);
+       return d <= distance;
+    }
+    function getPickupAt(col,row){ return G.pickups.find(p => !p.taken && p.col===col && p.row===row); }
+    function getChestAt(col,row){ return G.chests.find(c => c.col===col && c.row===row); }
+    function getNpcAt(col,row){ return G.npcs.find(n => n.col===col && n.row===row); }
+    function getDoorAt(col,row){ return G.doors.find(d => d.col===col && d.row===row); }
+    function getEnemyAt(col,row){ return G.enemies.find(e => e.alive && e.col===col && e.row===row); }
+    function getPickupNearPlayer(distance=1){ return G.pickups.find(p => !p.taken && isPlayerNear(p.col, p.row, distance)); }
+    function getChestNearPlayer(distance=1){ return G.chests.find(c => isPlayerNear(c.col, c.row, distance));}
+
+    function openDialog(npc){
+      G.activeDialogNpcId = npc.id;
+      G.activeDialogNode = npc.dialogDone ? "done" : npc.dialog.start;
+      document.getElementById("dialogOverlay").classList.add("open");
+      renderDialog();
+      pauseBlur(true);
+    }
+
+    function closeDialog(){
+  document.getElementById("dialogOverlay").classList.remove("open");
+  G.activeDialogNpcId = null;
+  G.activeDialogNode = null;
+  pauseBlur(false);
+}
+
+function renderDialog(){
+  const npc = G.npcs.find(n => n.id === G.activeDialogNpcId);
+  if (!npc) return closeDialog();
+
+  const node = npc.dialog.nodes[G.activeDialogNode];
+  if (!node) return closeDialog();
+
+  document.getElementById("dialogText").textContent = `${npc.name}\n\n${node.text}`;
+  const box = document.getElementById("dialogChoices");
+  box.innerHTML = "";
+
+  if (node.end) {
+    const btn = document.createElement("button");
+    btn.className = "choiceBtn";
+    btn.textContent = node.endChoiceText || "Close";
+    btn.onclick = () => finishDialogNode(npc, node);
+    box.appendChild(btn);
+    return;
+  }
+
+  (node.choices || []).forEach(choice => {
+    const btn = document.createElement("button");
+    btn.className = "choiceBtn";
+    btn.textContent = choice.text;
+    btn.onclick = () => chooseDialogOption(npc, choice);
+    box.appendChild(btn);
+  });
+}
+
+function finishDialogNode(npc, node){
+  if (Array.isArray(node.logs)) {
+    node.logs.forEach(log => addMemory(log));
+  } else if (node.log) {
+    addMemory(node.log);
+  }
+
+  if (G.activeDialogNode !== "done") {
+    npc.dialogDone = true;
+  }
+
+  closeDialog();
+  saveCurrentRoomState();
+}
+
+function chooseDialogOption(npc, choice){
+  if (!choice.next) return;
+
+  const nextNode = npc.dialog.nodes[choice.next];
+  if (!nextNode) return closeDialog();
+
+  G.activeDialogNode = choice.next;
+  renderDialog();
+}
+
+    function openChest(chest){
+      G.activeChestId = chest.id;
+      G.chestInput = [];
+      document.getElementById("chestOverlay").classList.add("open");
+      document.getElementById("chestTitle").textContent = chest.name;
+      document.getElementById("chestHint").textContent = chest.hint || "";
+      document.getElementById("chestStatus").textContent = chest.opened ? "It's already open" : "Enter the code to open";
+      renderChestButtons(chest);
+      pauseBlur(true);
+    }
+
+    function closeChest(){
+      document.getElementById("chestOverlay").classList.remove("open");
+      G.activeChestId = null;
+      G.chestInput = [];
+      pauseBlur(false);
+    }
+
+    function resetChestInput(){
+      G.chestInput = [];
+      const chest = G.chests.find(c => c.id===G.activeChestId);
+      if (!chest) return;
+      document.getElementById("chestStatus").textContent = chest.opened ? "It's already open" : "Code input reseted";
+      renderChestButtons(chest);
+    }
+
+    function renderChestButtons(chest){
+      const wrap = document.getElementById("chestPattern");
+      wrap.innerHTML = "";
+      chest.symbols.forEach((sym, i) => {
+        const btn = document.createElement("button");
+        btn.className = "patternBtn";
+        btn.textContent = sym;
+        if (G.chestInput.length && G.chestInput.includes(i)) btn.classList.add("active");
+        btn.onclick = () => pressChestSymbol(chest, i);
+        wrap.appendChild(btn);
+      });
+    }
+
+    function pressChestSymbol(chest, index){
+      if (chest.opened){
+       document.getElementById('chestStatus').textContent = "it's already open";
+      return;
+      }
+
+      G.chestInput.push(index);
+      renderChestButtons(chest);
+
+      if (G.chestInput.length < chest.correctSequence.length){
+       document.getElementById('chestStatus').textContent =
+      `Нажатий: ${G.chestInput.length}/${chest.correctSequence.length}`;
+      return;
+      }
+
+      const isCorrect = G.chestInput.every((value, i) => value === chest.correctSequence[i]);
+
+      if (isCorrect){
+      chest.opened = true;
+      giveItem(chest.reward.itemCode, chest.reward.amount ?? 1, chest.reward);
+      document.getElementById('chestStatus').textContent = chest.rewardText;
+      addMemory(`Opened ${chest.name}`);
+      saveCurrentRoomState();
+      return;
+      }
+
+      G.chestInput = [];
+      renderChestButtons(chest);
+      document.getElementById('chestStatus').textContent = 'Wrong code';
+      addMemory(`${chest.name}: Wrong code`);
+    }
+
+
+    function pickupUnderPlayer(){
+      const p = getPickupAt(G.player.col, G.player.row);
+      if (!p) return;
+      p.taken = true;
+      giveItem(p.itemCode, p.amount || 1, p);
+      addMemory(p.note || "Got it");
+      saveCurrentRoomState();
+    }
+
+    function isPlayerNear(col, row, distance=1) {
+    const d = chebyshev(G.player.col, G.player.row, col, row);
+    return d <= distance;
+    }
+
+    /*
+      ===================================================================
+      ЛОГИКА ПОДСКАЗКИ E
+      -------------------------------------------------------------------
+      1) NPC / сундук:
+         E появляется, если игрок стоит ВПЛОТНУЮ к объекту
+         (не важно, куда игрок смотрит)
+
+      2) Дверь:
+         E появляется ТОЛЬКО если игрок стоит ПРЯМО НА клетке двери
+
+      3) Автоподбираемые предметы:
+         E НЕ показываем
+      ===================================================================
+    */
+    function updateInteractHint(){
+      G.interactHint = null;
+
+      /* -------- ДВЕРЬ: игрок должен стоять прямо на клетке двери -------- */
+      const standingDoor = getDoorAt(G.player.col, G.player.row);
+      if (standingDoor){
+        G.interactHint = { col:G.player.col, row:G.player.row, text:"E", kind:"door" };
+        return;
+      }
+
+      /* -------- NPC и сундуки: достаточно быть рядом -------- */
+      const nearCells = [
+        { c:G.player.col+1, r:G.player.row },
+        { c:G.player.col-1, r:G.player.row },
+        { c:G.player.col,   r:G.player.row+1 },
+        { c:G.player.col,   r:G.player.row-1 },
+      ];
+
+      for (const cell of nearCells){
+        if (getNpcAt(cell.c, cell.r)){
+          G.interactHint = { col:cell.c, row:cell.r, text:"E", kind:"npc" };
+          return;
+        }
+        if (getChestAt(cell.c, cell.r)){
+          G.interactHint = { col:cell.c, row:cell.r, text:"E", kind:"chest" };
+          return;
+        }
+      }
+    }
+
+    /*
+      ===================================================================
+      ЛОГИКА E / ВЗАИМОДЕЙСТВИЯ
+      -------------------------------------------------------------------
+      - NPC / сундук: если игрок рядом, независимо от направления
+      - дверь: только если игрок стоит прямо в двери
+      ===================================================================
+    */
+    function interactFront(){
+      if (G.paused || G.gameOver) return;
+
+      /* ----- 1) ДВЕРЬ: только если стоим прямо в двери ----- */
+      const standingDoor = getDoorAt(G.player.col, G.player.row);
+      if (standingDoor){
+        if (standingDoor.requiresKeyId != null && !hasKey(standingDoor.requiresKeyId)){
+          addMemory(`Closed! Door number... ${standingDoor.number} I need a key`);
+          return;
+        }
+
+        if (!standingDoor.leadsTo || !standingDoor.targetDoorId){
+          addMemory(`The lock is broken... I'll never open that door`);
+          return;
+        }
+
+        saveCurrentRoomState();
+        saveCheckpoint();
+        addMemory(`The door ${standingDoor.number} is open now`);
+        loadRoom(standingDoor.leadsTo, standingDoor.targetDoorId);
+        return;
+      }
+
+      /* ----- 2) NPC / сундук: проверяем все соседние клетки ----- */
+      const nearCells = [
+        { c:G.player.col+1, r:G.player.row },
+        { c:G.player.col-1, r:G.player.row },
+        { c:G.player.col,   r:G.player.row+1 },
+        { c:G.player.col,   r:G.player.row-1 },
+      ];
+
+      for (const cell of nearCells){
+        const npc = getNpcAt(cell.c, cell.r);
+        if (npc){
+          openDialog(npc);
+          return;
+        }
+      }
+
+      for (const cell of nearCells){
+        const chest = getChestAt(cell.c, cell.r);
+        if (chest){
+          openChest(chest);
+          return;
+        }
+      }
+    }
+
+    /*
+      ===================================================================
+      AI ВИДИМОСТИ ВРАГА
+      -------------------------------------------------------------------
+      Новая логика:
+      - враг видит игрока на 1 клетку вокруг себя (ближняя зона)
+      - плюс на 3 клетки строго вперед по facing
+      -------------------------------------------------------------------
+      Это было твоё пожелание из прошлой итерации.
+      ===================================================================
+    */
+    function enemyCanSeePlayer(enemy){
+      if (!enemy.alive) return false;
+
+      const dx = G.player.col - enemy.col;
+      const dy = G.player.row - enemy.row;
+
+      /* Ближняя зона 1 клетка вокруг */
+      if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) return true;
+
+      /* Три клетки строго вперёд */
+      const f = dirVector(enemy.facing || "left");
+      for (let i=1; i<=3; i++){
+        const c = enemy.col + f.x * i;
+        const r = enemy.row + f.y * i;
+        if (isWall(c,r)) break;
+        if (c === G.player.col && r === G.player.row) return true;
+      }
+
+      return false;
+    }
+
+    /*
+      ===================================================================
+      ЛОГИКА ПОТЕРИ ЦЕЛИ
+      -------------------------------------------------------------------
+      Если враг уже в режиме chase, но игрок ушёл дальше чем на
+      CHASE_KEEP_RADIUS клеток по манхэттену, враг теряет цель.
+      ===================================================================
+    */
+    function enemyShouldStopChasing(enemy){
+      const d = chebyshev(enemy.col, enemy.row, G.player.col, G.player.row);
+      return d > CFG.CHASE_KEEP_RADIUS;
+    }
+
+    function updateEnemyFacing(enemy, dx, dy){
+      if (Math.abs(dx) > Math.abs(dy)) enemy.facing = dx >= 0 ? "right" : "left";
+      else if (Math.abs(dy) > 0) enemy.facing = dy >= 0 ? "down" : "up";
+    }
+
+    function damagePlayer(amount){
+      if (G.cheats.god) return;
+      G.player.hp -= amount;
+      G.player.flashUntil = now() + 180;
+      updateHud();
+      addMemory(`Ah, it hurts!`);
+
+      if (G.player.hp <= 0){
+        G.player.hp = 0;
+        updateHud();
+        onDeath();
+      }
+    }
+
+    function handleEnemyContact(){
+      const t = now();
+      for (const enemy of G.enemies){
+        if (!enemy.alive) continue;
+        if (enemy.col === G.player.col && enemy.row === G.player.row){
+          if (t - (enemy.lastHitAt || 0) < CFG.CONTACT_DAMAGE_COOLDOWN) continue;
+          enemy.lastHitAt = t;
+          damagePlayer(1);
+        }
+      }
+    }
+
+    function shoot(){
+      if (G.paused || G.gameOver || isModalOpen()) return;
+      if (!G.inventory.gun) return;
+      if (G.inventory.ammo <= 0) return;
+
+      G.inventory.ammo -= 1;
+      G.muzzleFlashUntil = now() + CFG.MUZZLE_FLASH_MS;
+      updateHud();
+
+      const v = dirVector(G.player.dir);
+      let c = G.player.col;
+      let r = G.player.row;
+
+      while (true){
+        c += v.x;
+        r += v.y;
+        if (isWall(c,r)) break;
+
+        const enemy = getEnemyAt(c,r);
+        if (enemy){
+          if (rand() <= CFG.HIT_CHANCE){
+            enemy.hp -= 1;
+            enemy.flashUntil = now() + CFG.HIT_FLASH_MS;
+            enemy.shakeUntil = now() + CFG.HIT_FLASH_MS;
+            enemy.stunUntil = now() + CFG.HIT_STUN_MS;
+            addMemory(`Scratched you! Come on...`);
+
+            if (enemy.hp <= 0){
+              enemy.alive = false;
+              addMemory(`Killed it!`);
+            }
+            saveCurrentRoomState();
+          } else {
+            addMemory(`Missed!!!`);
+          }
+          break;
+        }
+      }
+    }
+
+    function tryMove(dc, dr){
+      if (G.paused || G.gameOver || isModalOpen()) return;
+
+      const t = now();
+      if (t - G.player.lastMoveAt < CFG.MOVE_COOLDOWN) return;
+      G.player.lastMoveAt = t;
+
+      const nc = G.player.col + dc;
+      const nr = G.player.row + dr;
+
+      if (dc === 1) G.player.dir = "right";
+      if (dc === -1) G.player.dir = "left";
+      if (dr === 1) G.player.dir = "down";
+      if (dr === -1) G.player.dir = "up";
+
+      if (!G.cheats.noclip){
+  if (isWall(nc,nr) || isVoid(nc,nr)) return;
+  if (getNpcAt(nc,nr)) return;
+  if (getChestAt(nc,nr)) return;
+}
+
+      G.player.col = nc;
+      G.player.row = nr;
+
+      pickupUnderPlayer();
+      updateInteractHint();
+      handleEnemyContact();
+    }
+
+    /*
+      ===================================================================
+      ПРОВЕРКА ПРОХОДИМОСТИ КЛЕТКИ ДЛЯ ВРАГА
+      -------------------------------------------------------------------
+      Чтобы враги умели обходить стены, нам нужно уметь определять,
+      в какие клетки им можно идти.
+      ===================================================================
+    */
+    function isCellWalkableForEnemy(col, row, selfEnemy){
+      if (isWall(col,row) || isVoid(col,row)) return false;
+      if (getNpcAt(col,row)) return false;
+      if (getChestAt(col,row)) return false;
+
+      const occupiedByEnemy = G.enemies.some(e =>
+        e !== selfEnemy &&
+        e.alive &&
+        e.col === col &&
+        e.row === row
+      );
+      if (occupiedByEnemy) return false;
+
+      return true;
+    }
+
+    /*
+      ===================================================================
+      BFS PATHFINDING
+      -------------------------------------------------------------------
+      Это простейший поиск пути по сетке.
+      Он нужен, чтобы враг мог обойти стенку, а не тупить в неё.
+      -------------------------------------------------------------------
+      Возвращает СЛЕДУЮЩИЙ шаг, а не весь путь.
+      Это достаточно для нашей игры и намного проще.
+      ===================================================================
+    */
+    function findNextStepBFS(enemy, targetCol, targetRow){
+      const startKey = cellKey(enemy.col, enemy.row);
+      const queue = [{ col: enemy.col, row: enemy.row }];
+      const cameFrom = new Map();
+      cameFrom.set(startKey, null);
+
+      const dirs = [
+        {x:1,y:0},
+        {x:-1,y:0},
+        {x:0,y:1},
+        {x:0,y:-1},
+      ];
+
+      while (queue.length){
+        const current = queue.shift();
+
+        if (current.col === targetCol && current.row === targetRow){
+          break;
+        }
+
+        for (const d of dirs){
+          const nc = current.col + d.x;
+          const nr = current.row + d.y;
+          const key = cellKey(nc,nr);
+
+          if (cameFrom.has(key)) continue;
+
+          /*
+            Разрешаем целевую клетку даже если она занята игроком,
+            чтобы враг мог реально "прийти в игрока".
+          */
+          const targetIsPlayer = (nc === G.player.col && nr === G.player.row);
+
+          if (!targetIsPlayer && !isCellWalkableForEnemy(nc, nr, enemy)) continue;
+
+          cameFrom.set(key, current);
+          queue.push({ col:nc, row:nr });
+        }
+      }
+
+      const targetKey = cellKey(targetCol, targetRow);
+      if (!cameFrom.has(targetKey)) return null;
+
+      let step = { col:targetCol, row:targetRow };
+      let prev = cameFrom.get(targetKey);
+
+      while (prev && !(prev.col === enemy.col && prev.row === enemy.row)){
+        step = prev;
+        prev = cameFrom.get(cellKey(prev.col, prev.row));
+      }
+
+      return step;
+    }
+
+    /*
+      ===================================================================
+      ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ AI
+      ===================================================================
+    */
+
+    function enemyStepInterval(enemy){
+      return CFG.ENEMY_STEP_MS[enemy.speedTier] || CFG.ENEMY_STEP_MS.slow;
+    }
+
+    function enemyCanStepNow(enemy){
+      const t = now();
+      return t - enemy.lastStepAt >= enemyStepInterval(enemy);
+    }
+
+    function markEnemyStepped(enemy){
+      enemy.lastStepAt = now();
+    }
+
+    function setEnemyState(enemy, newState){
+      enemy.state = newState;
+    }
+
+    function enemyHasPatrol(enemy){
+      return Array.isArray(enemy.patrolPoints) && enemy.patrolPoints.length > 0;
+    }
+
+    function getEnemyReturnTarget(enemy){
+      /*
+        Если патруль есть -> возвращаемся к текущей patrol target точке
+        Если патруля нет -> возвращаемся на spawn
+      */
+      if (enemy.aiMode === "patrol" && enemyHasPatrol(enemy)){
+        const point = enemy.patrolPoints[enemy.patrolIndex] || enemy.patrolPoints[0];
+        return { col:point.col, row:point.row };
+      }
+      return { col:enemy.spawnCol, row:enemy.spawnRow };
+    }
+
+    function chooseRandomRoamTarget(enemy){
+      /*
+        Простая версия roam:
+        выбираем случайную свободную клетку пола в комнате.
+      */
+      const candidates = [];
+      for (let r=1; r<G.room.map.length-1; r++){
+        for (let c=1; c<G.room.map[r].length-1; c++){
+          if (!isCellWalkableForEnemy(c, r, enemy)) continue;
+          candidates.push({ col:c, row:r });
+        }
+      }
+      if (!candidates.length) return null;
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function moveEnemyOneStep(enemy, targetCol, targetRow){
+      if (enemy.col === targetCol && enemy.row === targetRow) return false;
+
+      /*
+        Сначала пробуем прямой шаг:
+        это дешевле, чем всегда запускать BFS.
+      */
+      const dx = targetCol - enemy.col;
+      const dy = targetRow - enemy.row;
+
+      let primaryOptions = [];
+
+      if (Math.abs(dx) > Math.abs(dy)){
+        primaryOptions.push({ col: enemy.col + Math.sign(dx), row: enemy.row });
+        if (dy !== 0) primaryOptions.push({ col: enemy.col, row: enemy.row + Math.sign(dy) });
+      } else {
+        if (dy !== 0) primaryOptions.push({ col: enemy.col, row: enemy.row + Math.sign(dy) });
+        if (dx !== 0) primaryOptions.push({ col: enemy.col + Math.sign(dx), row: enemy.row });
+      }
+
+      for (const step of primaryOptions){
+        const targetIsPlayer = (step.col === G.player.col && step.row === G.player.row);
+        if (targetIsPlayer || isCellWalkableForEnemy(step.col, step.row, enemy)){
+          enemy.col = step.col;
+          enemy.row = step.row;
+          updateEnemyFacing(enemy, step.col - enemy.col, step.row - enemy.row);
+          return true;
+        }
+      }
+
+      /*
+        Если прямой путь не сработал -> пробуем BFS и обходим стену.
+      */
+      const bfsStep = findNextStepBFS(enemy, targetCol, targetRow);
+      if (bfsStep){
+        const oldCol = enemy.col;
+        const oldRow = enemy.row;
+        enemy.col = bfsStep.col;
+        enemy.row = bfsStep.row;
+        updateEnemyFacing(enemy, enemy.col - oldCol, enemy.row - oldRow);
+        return true;
+      }
+
+      return false;
+    }
+
+    function updatePatrolIndex(enemy){
+      if (!enemyHasPatrol(enemy)) return;
+
+      if (enemy.patrolLoop === "pingpong"){
+        if (enemy.patrolForward){
+          enemy.patrolIndex++;
+          if (enemy.patrolIndex >= enemy.patrolPoints.length){
+            enemy.patrolIndex = Math.max(0, enemy.patrolPoints.length - 2);
+            enemy.patrolForward = false;
+          }
+        } else {
+          enemy.patrolIndex--;
+          if (enemy.patrolIndex < 0){
+            enemy.patrolIndex = Math.min(1, enemy.patrolPoints.length - 1);
+            enemy.patrolForward = true;
+          }
+        }
+      } else {
+        enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.patrolPoints.length;
+      }
+    }
+
+    /*
+      ===================================================================
+      ОСНОВНАЯ ЛОГИКА AI ВРАГА
+      -------------------------------------------------------------------
+      Это ключевая модульная часть.
+      Здесь ты потом сможешь легко править только поведение AI,
+      не ломая остальную игру.
+      ===================================================================
+    */
+    function updateEnemyAI(enemy){
+      if (!enemy.alive) return;
+      if (!enemyCanStepNow(enemy)) return;
+      if (now() < (enemy.stunUntil || 0)) return;
+
+      /* ---------- Если враг увидел игрока -> chase ---------- */
+      if (enemyCanSeePlayer(enemy)){
+        setEnemyState(enemy, "chase");
+      }
+
+      /* ---------- Если в chase, но игрок ушёл слишком далеко ---------- */
+      if (enemy.state === "chase" && enemyShouldStopChasing(enemy)){
+        setEnemyState(enemy, "return");
+      }
+
+      if (enemy.state === "chase"){
+        const oldCol = enemy.col;
+        const oldRow = enemy.row;
+        moveEnemyOneStep(enemy, G.player.col, G.player.row);
+        updateEnemyFacing(enemy, enemy.col - oldCol, enemy.row - oldRow);
+        markEnemyStepped(enemy);
+        return;
+      }
+
+      if (enemy.state === "return"){
+        const target = getEnemyReturnTarget(enemy);
+
+        if (enemy.col === target.col && enemy.row === target.row){
+          /*
+            Когда враг вернулся:
+            - patrol -> идём дальше по маршруту
+            - static -> стоим
+            - roam   -> снова roam
+          */
+          if (enemy.aiMode === "patrol" && enemyHasPatrol(enemy)){
+            setEnemyState(enemy, "patrol");
+          } else if (enemy.aiMode === "roam"){
+            setEnemyState(enemy, "roam");
+            enemy.roamTarget = null;
+          } else {
+            setEnemyState(enemy, "static");
+          }
+          markEnemyStepped(enemy);
+          return;
+        }
+
+        const oldCol = enemy.col;
+        const oldRow = enemy.row;
+        moveEnemyOneStep(enemy, target.col, target.row);
+        updateEnemyFacing(enemy, enemy.col - oldCol, enemy.row - oldRow);
+        markEnemyStepped(enemy);
+        return;
+      }
+
+      if (enemy.aiMode === "static"){
+        setEnemyState(enemy, "static");
+        markEnemyStepped(enemy);
+        return;
+      }
+
+      if (enemy.aiMode === "patrol"){
+        if (!enemyHasPatrol(enemy)){
+          /*
+            Если patrolPoints пустой:
+            враг превращается в static по твоему ТЗ.
+          */
+          setEnemyState(enemy, "static");
+          markEnemyStepped(enemy);
+          return;
+        }
+
+        setEnemyState(enemy, "patrol");
+
+        const point = enemy.patrolPoints[enemy.patrolIndex];
+        if (!point){
+          enemy.patrolIndex = 0;
+          markEnemyStepped(enemy);
+          return;
+        }
+
+        if (enemy.col === point.col && enemy.row === point.row){
+          updatePatrolIndex(enemy);
+          markEnemyStepped(enemy);
+          return;
+        }
+
+        const oldCol = enemy.col;
+        const oldRow = enemy.row;
+        moveEnemyOneStep(enemy, point.col, point.row);
+        updateEnemyFacing(enemy, enemy.col - oldCol, enemy.row - oldRow);
+        markEnemyStepped(enemy);
+        return;
+      }
+
+      if (enemy.aiMode === "roam"){
+        setEnemyState(enemy, "roam");
+
+        /*
+          Если roam-цели нет или дошёл до неё — выбираем новую.
+        */
+        if (!enemy.roamTarget || (enemy.col === enemy.roamTarget.col && enemy.row === enemy.roamTarget.row)){
+          enemy.roamTarget = chooseRandomRoamTarget(enemy);
+          markEnemyStepped(enemy);
+          return;
+        }
+
+        const oldCol = enemy.col;
+        const oldRow = enemy.row;
+        moveEnemyOneStep(enemy, enemy.roamTarget.col, enemy.roamTarget.row);
+        updateEnemyFacing(enemy, enemy.col - oldCol, enemy.row - oldRow);
+        markEnemyStepped(enemy);
+        return;
+      }
+
+      markEnemyStepped(enemy);
+    }
+
+    function stepEnemies(){
+      if (G.paused || G.gameOver || isModalOpen()) return;
+
+      for (const enemy of G.enemies){
+        updateEnemyAI(enemy);
+      }
+
+      handleEnemyContact();
+    }
+
+    function drawGrid(){
+        ctx.strokeStyle = "rgba(5,217,232,.08)";
+        ctx.lineWidth = 0.5;
+        
+        for (let r = 0; r < G.room.map.length; r++){
+            for (let c = 0; c < G.room.map[r].length; c++){
+                if (isVoid(c, r)) continue;
+                
+                const x = c * CFG.TILE;
+                const y = r * CFG.TILE;
+                
+                ctx.strokeRect(x, y, CFG.TILE, CFG.TILE);
+            }
+        }
+    }
+
+    function drawTiles(){
+        for (let r=0; r<G.room.map.length; r++){
+            for (let c=0; c<G.room.map[r].length; c++){
+                const tile = G.room.map[r][c];
+                const x = c * CFG.TILE;
+                const y = r * CFG.TILE;
+                
+                if (tile === 2){
+                    continue;
+                }
+                if (tile === 1){
+                    ctx.fillStyle = "#161b30";
+                    ctx.fillRect(x, y, CFG.TILE, CFG.TILE);
+                    ctx.strokeStyle = "rgba(5,217,232,.34)";
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(x+1, y+1, CFG.TILE-2, CFG.TILE-2);
+                }
+            }
+        }
+    }
+
+    function drawDoors(){
+      G.doors.forEach(door => {
+        const x = door.col * CFG.TILE;
+        const y = door.row * CFG.TILE;
+        const locked = door.requiresKeyId != null && !hasKey(door.requiresKeyId);
+        const p = 0.5 + 0.5 * Math.sin(G.tick * 0.05 + door.col);
+
+        ctx.save();
+        ctx.fillStyle = locked ? `rgba(255,92,121,${0.12 + p*0.07})` : `rgba(255,209,102,${0.10 + p*0.07})`;
+        ctx.fillRect(x,y,CFG.TILE,CFG.TILE);
+        ctx.strokeStyle = locked ? "#ff5c79" : "#ffd166";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x+4,y+4,CFG.TILE-8,CFG.TILE-8);
+
+        ctx.fillStyle = locked ? "#ff5c79" : "#ffd166";
+        ctx.font = "bold 10px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(door.number, x + CFG.TILE/2, y + CFG.TILE/2 - 2);
+
+        if (door.requiresKeyId != null){
+          ctx.font = "bold 8px monospace";
+          ctx.fillText("K"+door.requiresKeyId, x + CFG.TILE/2, y + CFG.TILE/2 + 9);
+        }
+        ctx.restore();
+      });
+    }
+
+    function drawPickups(){
+      G.pickups.forEach(p => {
+        if (p.taken) return;
+        if (!isPlayerNear(p.col, p.row, 1)) return;
+        const pos = centerFromCell(p.col, p.row);
+        const x = pos.x, y = pos.y;
+
+        if (p.itemCode === 1){
+          ctx.strokeStyle = "#ffd166";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x-3, y, 5, 0, Math.PI*2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x+2,y);
+          ctx.lineTo(x+10,y);
+          ctx.lineTo(x+10,y+5);
+          ctx.moveTo(x+8,y);
+          ctx.lineTo(x+8,y+4);
+          ctx.stroke();
+          if (p.keyId != null){
+            ctx.fillStyle = "#ffd166";
+            ctx.font = "bold 9px monospace";
+            ctx.textAlign = "center";
+            ctx.fillText(String(p.keyId), x, y - 11);
+          }
+        } else if (p.itemCode === 2){
+          ctx.fillStyle = "#d6e2ff";
+          ctx.fillRect(x-8,y-3,14,6);
+          ctx.fillRect(x+2,y-2,6,4);
+          ctx.fillRect(x-3,y+2,5,7);
+        } else if (p.itemCode === 3){
+          ctx.fillStyle = "#ffd166";
+          for (let i=0;i<Math.min(4,p.amount);i++){
+            ctx.fillRect(x-8 + i*4, y-5 + (i%2)*3, 3, 8);
+          }
+        }
+      });
+    }
+
+    function drawChests(){
+      G.chests.forEach(chest => {
+        if (!isPlayerNear(chest.col, chest.row, 3)) return;
+
+        const x = chest.col * CFG.TILE;
+        const y = chest.row * CFG.TILE;
+        const pulse = 0.7 + 0.3 * Math.sin(G.tick*0.06 + chest.col);
+
+        ctx.save();
+        ctx.shadowColor = "rgba(255,209,102,.35)";
+        ctx.shadowBlur = 10 * pulse;
+        ctx.fillStyle = chest.opened ? "#5a4620" : "#3d2600";
+        ctx.fillRect(x+4,y+14,CFG.TILE-8,12);
+        ctx.fillStyle = chest.opened ? "#887041" : "#5a3a00";
+        ctx.fillRect(x+3,y+8,CFG.TILE-6,8);
+        ctx.fillStyle = "#ffd166";
+        ctx.fillRect(x+3,y+14,CFG.TILE-6,2);
+        ctx.fillRect(x+CFG.TILE/2-2,y+16,4,5);
+        ctx.restore();
+      });
+    }
+
+    function drawNpcs(){
+      G.npcs.forEach(npc => {
+        if (!isPlayerNear(npc.col, npc.row, 9)) return;
+
+        const pos = centerFromCell(npc.col, npc.row);
+        ctx.save();
+        ctx.shadowColor = "rgba(53,255,141,.28)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = "#153628";
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 10, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "#35ff8d";
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y-2, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = "rgba(255,255,255,.9)";
+        ctx.font = "8px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("", pos.x, pos.y - 14);
+      });
+    }
+
+    function drawEnemyInterpolation(){
+      G.enemies.forEach(enemy => {
+        const target = centerFromCell(enemy.col, enemy.row);
+        enemy.px = lerp(enemy.px, target.x, 0.18);
+        enemy.py = lerp(enemy.py, target.y, 0.18);
+      });
+    }
+
+    function enemyMarkBars(enemy){
+      /*
+        type 1 -- |
+        type 2 -- ||
+      */
+      if (enemy.type === 2) return "||";
+      return "|";
+    }
+
+    function enemyBaseColor(enemy){
+      return enemy.speedTier === "fast" ? "#a5192f" : "#4b1323";
+    }
+
+    function drawEnemy(enemy){
+      let x = enemy.px, y = enemy.py;
+      if (now() < (enemy.shakeUntil || 0)){
+        x += (Math.random() - 0.5) * 5;
+        y += (Math.random() - 0.5) * 5;
+      }
+
+      const flashing = now() < (enemy.flashUntil || 0);
+      const v = dirVector(enemy.facing || "left");
+
+      ctx.save();
+      ctx.shadowColor = flashing ? "rgba(255,92,121,.65)" : "rgba(255,92,121,.26)";
+      ctx.shadowBlur = flashing ? 18 : 10;
+      ctx.fillStyle = flashing ? "#ff2a44" : enemyBaseColor(enemy);
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = flashing ? "#ffffff" : "#ff5c79";
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,.65)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x,y);
+      ctx.lineTo(x + v.x*10, y + v.y*10);
+      ctx.stroke();
+
+      /*
+        Рисуем "палочки лица" как индикатор типа врага.
+      */
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 7px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(enemyMarkBars(enemy), x, y - 14);
+
+      ctx.restore();
+    }
+
+    function drawEnemies(){
+      G.enemies.forEach(enemy => {
+        if (!enemy.alive) return;
+        if (!isPlayerNear(enemy.col, enemy.row, 9)) return;
+
+        drawEnemy(enemy);
+      });
+    }
+
+    /*
+      Optional: the patrol route could be made visible for debugging. 
+      CHANGE false on true in DEBUG_DRAW_PATROLS
+    */
+    const DEBUG_DRAW_PATROLS = false;
+
+    function drawPatrolRoutes(){
+      if (!DEBUG_DRAW_PATROLS) return;
+
+      G.enemies.forEach(enemy => {
+        if (!enemy.alive) return;
+        if (enemy.aiMode !== "patrol") return;
+        if (!enemyHasPatrol(enemy)) return;
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(5,217,232,.25)";
+        ctx.fillStyle = "rgba(5,217,232,.35)";
+        ctx.lineWidth = 1;
+
+        for (let i=0; i<enemy.patrolPoints.length; i++){
+          const a = centerFromCell(enemy.patrolPoints[i].col, enemy.patrolPoints[i].row);
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, 3, 0, Math.PI*2);
+          ctx.fill();
+
+          const next = enemy.patrolPoints[(i+1) % enemy.patrolPoints.length];
+          if (next && (enemy.patrolLoop === "loop" || i < enemy.patrolPoints.length - 1)){
+            const b = centerFromCell(next.col, next.row);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawPlayer(){
+      const target = centerFromCell(G.player.col, G.player.row);
+      G.player.px = lerp(G.player.px, target.x, CFG.PLAYER_LERP);
+      G.player.py = lerp(G.player.py, target.y, CFG.PLAYER_LERP);
+
+      const flashing = now() < G.player.flashUntil;
+      const v = dirVector(G.player.dir);
+
+      ctx.save();
+      ctx.shadowColor = flashing ? "rgba(255,92,121,.45)" : "rgba(5,217,232,.42)";
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = flashing ? "#ff5c79" : "#05d9e8";
+      ctx.beginPath();
+      ctx.arc(G.player.px, G.player.py, 10, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(G.player.px, G.player.py);
+      ctx.lineTo(G.player.px + v.x*12, G.player.py + v.y*12);
+      ctx.stroke();
+
+      if (now() < G.muzzleFlashUntil){
+        ctx.fillStyle = "#ffd166";
+        ctx.beginPath();
+        ctx.arc(G.player.px + v.x*14, G.player.py + v.y*14, 4, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      if (G.cheats.god){
+        ctx.strokeStyle = "rgba(255,216,79,.75)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(G.player.px, G.player.py, 14, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawInteractHint(){
+      if (!G.interactHint) return;
+      const pos = centerFromCell(G.interactHint.col, G.interactHint.row);
+      const x = pos.x;
+      const y = pos.y - 22;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(14,18,34,.96)";
+      ctx.strokeStyle = "rgba(5,217,232,.44)";
+      ctx.lineWidth = 1;
+      if (ctx.roundRect){
+        ctx.beginPath();
+        ctx.roundRect(x-10, y-10, 20, 20, 6);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(x-10, y-10, 20, 20);
+        ctx.strokeRect(x-10, y-10, 20, 20);
+      }
+      ctx.fillStyle = "#05d9e8";
+      ctx.font = "bold 10px monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("E", x, y);
+      ctx.restore();
+    }
+
+    function drawScene(){
+      ctx.clearRect(0,0,CFG.W,CFG.H);
+      ctx.fillStyle = "#070b16";
+      ctx.fillRect(0,0,CFG.W,CFG.H);
+
+      drawGrid();
+      drawTiles();
+      drawDoors();
+      drawPickups();
+      drawChests();
+      drawNpcs();
+      drawPatrolRoutes();
+      drawEnemyInterpolation();
+      drawEnemies();
+      drawPlayer();
+      drawInteractHint();
+    }
+
+    function pauseBlur(on){
+      const anyOpen = on ||
+        document.getElementById("pauseMenu").classList.contains("open") ||
+        document.getElementById("dialogOverlay").classList.contains("open") ||
+        document.getElementById("chestOverlay").classList.contains("open") ||
+        document.getElementById("gameOverOverlay").classList.contains("open");
+
+      document.getElementById("app").classList.toggle("blurred", anyOpen);
+    }
+
+    function openPauseMenu(isDeath=false){
+      G.paused = true;
+      document.getElementById("pauseMenu").classList.add("open");
+      document.getElementById("pauseMenuTitle").textContent = isDeath ? "Pause / Death" : "Pause";
+      document.getElementById("pauseMenuText").textContent = isDeath
+        ? "You died. Load checkpoint or restart the game"
+        : "Game paused";
+      document.getElementById("resumeBtn").style.display = isDeath ? "none" : "block";
+      pauseBlur(true);
+    }
+
+    function closePauseMenu(){
+      document.getElementById("pauseMenu").classList.remove("open");
+      if (!G.gameOver) G.paused = false;
+      pauseBlur(false);
+    }
+
+    function openGameOver(){
+      G.gameOver = true;
+      G.paused = true;
+      document.getElementById("gameOverOverlay").classList.add("open");
+      pauseBlur(true);
+    }
+
+    function closeGameOver(){
+      document.getElementById("gameOverOverlay").classList.remove("open");
+      G.gameOver = false;
+      G.paused = false;
+      pauseBlur(false);
+    }
+
+    function onDeath(){
+      openGameOver();
+    }
+
+    function confirmAndLoadCheckpoint(){
+      if (!confirm("Restart from the last checkpoint?")) return;
+      if (!loadCheckpointFromStorage()) return;
+      applyCheckpoint(G.checkpoint);
+      closePauseMenu();
+      closeGameOver();
+    }
+
+    function confirmAndRestartFull(){
+      if (!confirm("Restart the game. All progress will be lost")) return;
+      clearAllSaves();
+      location.reload();
+    }
+
+    function updateCheatButtons(){
+      const godBtn = document.getElementById("cheatGodBtn");
+      const noclipBtn = document.getElementById("cheatNoclipBtn");
+      godBtn.textContent = `God mode: ${G.cheats.god ? "ON" : "OFF"}`;
+      noclipBtn.textContent = `Noclip: ${G.cheats.noclip ? "ON" : "OFF"}`;
+      godBtn.classList.toggle("cheatActive", G.cheats.god);
+      noclipBtn.classList.toggle("cheatActive", G.cheats.noclip);
+    }
+
+    function openCheatPanel(){
+      document.getElementById("cheatPanel").classList.add("open");
+      updateCheatButtons();
+    }
+
+    function killAllInRoom(){
+      G.enemies.forEach(e => e.alive = false);
+      saveCurrentRoomState();
+      addMemory("CHEAT: All enemies removed");
+    }
+
+    function allKeysCheat(){
+      const ids = [];
+      Object.values(ROOMS).forEach(room => {
+        (room.doors || []).forEach(d => {
+          if (d.requiresKeyId != null && !ids.includes(d.requiresKeyId)) ids.push(d.requiresKeyId);
+        });
+        (room.pickups || []).forEach(p => {
+          if (p.keyId != null && !ids.includes(p.keyId)) ids.push(p.keyId);
+        });
+      });
+      G.inventory.keys = Array.from(new Set([...G.inventory.keys, ...ids])).sort((a,b)=>a-b);
+      updateInventoryUI();
+      addMemory("CHEAT: all keys");
+    }
+
+    document.getElementById("pauseBtn").addEventListener("click", () => {
+      if (G.gameOver) return;
+      if (document.getElementById("pauseMenu").classList.contains("open")) closePauseMenu();
+      else openPauseMenu(false);
+    });
+
+    document.getElementById("resumeBtn").addEventListener("click", () => closePauseMenu());
+    document.getElementById("loadCheckpointBtn").addEventListener("click", () => confirmAndLoadCheckpoint());
+    document.getElementById("restartFullBtn").addEventListener("click", () => confirmAndRestartFull());
+    document.getElementById("gameOverLoadBtn").addEventListener("click", () => confirmAndLoadCheckpoint());
+    document.getElementById("gameOverRestartBtn").addEventListener("click", () => confirmAndRestartFull());
+
+    document.getElementById("secretInput").addEventListener("input", e => {
+      if (e.target.value === "0000"){
+        openCheatPanel();
+        e.target.value = "";
+      }
+    });
+
+    document.getElementById("cheatGodBtn").addEventListener("click", () => {
+      G.cheats.god = !G.cheats.god;
+      updateCheatButtons();
+    });
+
+    document.getElementById("cheatNoclipBtn").addEventListener("click", () => {
+      G.cheats.noclip = !G.cheats.noclip;
+      updateCheatButtons();
+    });
+
+    document.getElementById("cheatAmmoBtn").addEventListener("click", () => {
+      G.inventory.ammo += 1000;
+      updateHud();
+      addMemory("CHEAT: +1000 ammo.");
+    });
+
+    document.getElementById("cheatAllKeysBtn").addEventListener("click", () => {
+      allKeysCheat();
+    });
+
+    document.getElementById("cheatKillAllBtn").addEventListener("click", () => {
+      killAllInRoom();
+    });
+
+    document.getElementById("cheatClearBtn").addEventListener("click", () => {
+      G.cheats.god = false;
+      G.cheats.noclip = false;
+      updateCheatButtons();
+      addMemory("All CHEATS deactivated");
+    });
+
+    addEventListener("keydown", e => {
+      G.keysDown[e.key.toLowerCase()] = true;
+
+      if (e.key === " "){
+        e.preventDefault();
+        shoot();
+      }
+
+      if (["e", "E", "у", "У"].includes(e.key)) {
+        interactFront();
+      }
+       if (e.key === "Escape"){
+        if (document.getElementById("dialogOverlay").classList.contains("open")) closeDialog();
+        else if (document.getElementById("chestOverlay").classList.contains("open")) closeChest();
+        else if (!G.gameOver){
+          if (document.getElementById("pauseMenu").classList.contains("open")) closePauseMenu();
+          else openPauseMenu(false);
+        }
+      }
+    });
+
+    addEventListener("keyup", e => {
+      G.keysDown[e.key.toLowerCase()] = false;
+    });
+
+    function handleInput(){
+      if (G.paused || G.gameOver || isModalOpen()) return;
+      if (G.keysDown["arrowup"] || G.keysDown["w"]) return tryMove(0,-1);
+      if (G.keysDown["arrowdown"] || G.keysDown["s"]) return tryMove(0,1);
+      if (G.keysDown["arrowleft"] || G.keysDown["a"]) return tryMove(-1,0);
+      if (G.keysDown["arrowright"] || G.keysDown["d"]) return tryMove(1,0);
+    }
+
+    function loop(){
+      G.tick++;
+      handleInput();
+      stepEnemies();
+      updateInteractHint();
+      handleEnemyContact();
+      drawScene();
+      requestAnimationFrame(loop);
+    }
+
+    function init(){
+      canvas.width = CFG.W;
+      canvas.height = CFG.H;
+      renderMemory();
+      updateInventoryUI();
+      updateCheatButtons();
+
+      if (loadCheckpointFromStorage()){
+        applyCheckpoint(G.checkpoint);
+      } else {
+        G.roomStates = {};
+        G.inventory = { keys:[], gun:0, ammo:0 };
+        G.player.hp = CFG.MAX_HP;
+        loadRoom("room_01");
+        addMemory("Where am I? Gotta find a way out...");
+      }
+
+      updateHud();
+      requestAnimationFrame(loop);
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
